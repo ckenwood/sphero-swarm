@@ -10,7 +10,7 @@ import numpy as np
 
 from sphero_driver import sphero_driver
 import dynamic_reconfigure.server
-
+import geometry_msgs.msg
 from sensor_msgs.msg import Imu
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, Pose, Quaternion, Twist, TwistWithCovariance, Vector3
@@ -30,11 +30,7 @@ class Sphero(object):
     #xlim = np.array((-3,0),(3,0))
     #ylim = np.array((0,-3),(0,3))
     bounds = [(-3,0),(3,0),(0,-3),(0,3)] # format: (x,y)
-
-    # Inertia, rate constants
-    mass =  1.0
-    rate = 100 # update rate in force-momentum equation; dt = 1/rate; F*dt = mass*dv
-
+   
     def __init__(self, number, name):
         self.xpos = 0.0
         self.ypos = 0.0
@@ -42,38 +38,51 @@ class Sphero(object):
         self.yvel = 0.0
         self.vx_imu = 0.0
         self.vy_imu = 0.0
-        self.b_force = np.array(0.0, 0.0) # Boundary repulsion
-        self.a_force = np.array(0.0, 0.0) # Inter-agent repulsion
-        self.w_force = np.array(1.0,0.0) # Waypoint finding force
+        self.b_force = np.array([0.0, 0.0]) # Boundary repulsion
+        self.a_force = np.array([0.0, 0.0]) # Inter-agent repulsion
+        self.w_force = np.array([1.0, 0.0]) # Waypoint finding force
         self.speed = 0.0
         self.heading = 0.0
         self.number = number
         self.name = name
+        self.cmd_vel_pub = rospy.Publisher(self.name + '/cmd_vel', Twist, queue_size = 10)
+         # Inertia, rate constants
+        self.mass =  1.0
+        self.rate = 100 # update rate in force-momentum equation; dt = 1/rate; F*dt = mass*dv
+
     
-    def set_wp(self,data)
+    def set_wp(self,data):
         # Set the waypointing direction and magnitude for a sphero:
         self.w_force = data
 
     def bound_repulse(self):
-        for (xlim,ylim) in bounds:
-            bx = math.sqrt((self.xpos - xlim)**2)
+        b_force_x = 0.0
+        b_force_y = 0.0
+        for (xlim,ylim) in self.bounds:
+            #print("Limits are :" + str(xlim) +" , " + str(ylim))
+            bx = math.sqrt((self.xpos - xlim)**2)            
             by = math.sqrt((self.ypos - ylim)**2)
             if xlim != 0.0:
-                self.b_force[0] += (U0/R)* math.exp(-bx/R)*(self.xpos - xlim)/bx
+                b_force_x += (self.U0/self.R)* math.exp(-bx/self.R)*(self.xpos - xlim)/bx
             if ylim != 0.0:
-                self.b_force[1] += (U0/R)* math.exp(-by/R)*(self.ypos - ylim)/by
+                b_force_y += (self.U0/self.R)* math.exp(-by/self.R)*(self.ypos - ylim)/by
+
+        self.b_force[0] = b_force_x
+        self.b_force[1] = b_force_y
 
     def agent_repulse(self, other):
-        
+        eps = np.finfo(float).eps
         other_x,other_y = other.ret_pos()
-
-        b = math.sqrt((self.xpos - other_x)**2 + (self.ypos - other_y)**2)
-        self.a_force += (V0/sig)*(math.exp(-b/sig))*np.array(self.xpos - other.xpos , self.ypos - other.ypos)/b
+        V0 = self.V0
+        sig = self.sig
+        b = math.sqrt((self.xpos - other_x)**2 + (self.ypos - other_y)**2) + eps
+        self.a_force = (V0/sig)*(math.exp(-b/sig))*np.array([self.xpos - other.xpos , self.ypos - other.ypos])/b
 
     def update_velocity(self):
-        total_force = a_force + b_force + w_force
-        self.xvel += (total_force[0]/(mass*rate))
-        self.yvel += (total_force[1]/(mass*rate))
+        total_force = self.a_force + self.b_force + self.w_force
+        print total_force
+        self.xvel += (total_force[0]/(self.mass*self.rate))
+        self.yvel += (total_force[1]/(self.mass*self.rate))
         self.speed = math.sqrt(self.xvel**2 + self.yvel**2)
         self.heading = math.atan2(self.ypos,self.xpos)
 
@@ -85,35 +94,39 @@ class Sphero(object):
         self.xvel = msg.twist.linear.x
         self.yvel = msg.twist.linear.y
 
-    def _init_pubsub(self):
-        self.cmd_vel_pub = rospy.Publisher(self.name + 'cmd_vel', Twist, queue_size = 10)
-        
-
-    def pub_cmd(self):
-        rospy.Subscriber(self.name + 'odom', Odometry, self.set_pose)
-        self.update_velocity()
-        vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(self.xvel,self.yvel, geometry_msgs.msg.Vector3(0,0,0))
-        self.cmd_vel_pub.publish(vel_msg)
-        # Send updated velocity to Sphero
-
+    # def _init_pubsub(self):
+    #     self.cmd_vel_pub = rospy.Publisher(self.name + 'cmd_vel', Twist, queue_size = 10)
+    
     def ret_pos(self):
         return (self.xpos,self.ypos)
+    
+
+    def pub_cmd(self):
+        rospy.Subscriber(self.name + '/odom', Odometry, self.set_pose)
+        self.update_velocity()
+        self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(self.xvel,self.yvel,0), geometry_msgs.msg.Vector3(0,0,0))
+        self.cmd_vel_pub.publish(self.vel_msg)
+        # Send updated velocity to Sphero
+
 
 
         
 if __name__ == '__main__':
-    
     N_agents = 2
     spheros = []
-
+    rospy.init_node('social_force')
     # Initialize spheros: 
-        for i in range(0,N_agents):
-            name_i = 'name' + str(i)
-            wp_i = np.array(1 if i%2 else -1,0)
-            spheros.append(Sphero(i,name_i))
-            spheros[i].set_wp(wp_i)
+    for i in range(0,N_agents):
+        name_i = 'name' + str(i)
+        if i%2 == 0:
+            wp_i = np.array([1,0])
+        else:
+            wp_i = np.array([-1,0])
+        spheros.append(Sphero(i,name_i))
+        spheros[i].set_wp(wp_i)
 
-
+    r = 100 # rate of 100 Hz
+    rate = rospy.Rate(r)
     while not rospy.is_shutdown():
 
         # Publish velocities based on the force: 
