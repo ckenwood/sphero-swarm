@@ -173,9 +173,9 @@ if __name__ == "__main__":
         s.printStreamInfo()
         sys.exit(0)
 
-    streams = s.selectStreams(["Time", "GPSReceiverHelmet-goodaxes:GPSReceiverHelmet01 <t-X>",\
-                                       "GPSReceiverHelmet-goodaxes:GPSReceiverHelmet01 <t-Y>",\
-                                       "GPSReceiverHelmet-goodaxes:GPSReceiverHelmet01 <a-Z>"])
+    streams = s.selectStreams(["Time", "GPSReceiverHelmet_goodaxes:GPSReceiverHelmet01 <t-X>",\
+                                       "GPSReceiverHelmet_goodaxes:GPSReceiverHelmet01 <t-Y>",\
+                                       "GPSReceiverHelmet_goodaxes:GPSReceiverHelmet01 <a-Z>"])
     
     s.startStreams(verbose=False)
 

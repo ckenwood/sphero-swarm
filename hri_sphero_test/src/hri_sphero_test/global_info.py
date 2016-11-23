@@ -39,7 +39,7 @@ def get_global_pose(robot_start_pose, init_odom, current_odom):
     #current_odom = [x_current_odom, y_current_odom]
 
     # calculate odom
-    local_odom_change = current_odom - init_odom
+    local_odom_change = list(numpy.array(current_odom) - numpy.array(init_odom)) #current_odom - init_odom
 
     # convert from local to global
     global_pose = local2global(local_odom_change, robot_start_pose)

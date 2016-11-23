@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+        <node ns="sphero_ypw" name="global_pose" pkg="hri_sphero_test" type="global_pose.py" args="--robot_start_pose '[0,0,0]'" output="screen"/>
+        <node ns="sphero_wrb" name="global_pose" pkg="hri_sphero_test" type="global_pose.py" args="--robot_start_pose '[0,0,0]'" output="screen"/>
+
+        <node name="social_force" pkg="hri_sphero_test" type="social_force.py" output="screen"/>
+
+</launch>
