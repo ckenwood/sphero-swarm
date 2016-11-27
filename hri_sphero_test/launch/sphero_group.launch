@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-		<node ns="sphero_ypw" name="sphero_ypw" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-YPW --target_addr 68:86:E7:03:49:A6" respawn='true' output="screen"/>
-		<node ns="sphero_wrb" name="sphero_wrb" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-WRB --target_addr 68:86:E7:09:22:BF" respawn='true' output="screen"/>
+    <!-- spheros -->
+    <node ns="sphero_ypw" name="sphero_ypw" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-YPW --target_addr 68:86:E7:03:49:A6" respawn='true' output="screen"/>
+    <node ns="sphero_wrb" name="sphero_wrb" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-WRB --target_addr 68:86:E7:09:22:BF" respawn='true' output="screen"/>
 </launch>
