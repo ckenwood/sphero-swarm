@@ -101,9 +101,10 @@ class GlobalPoseObj(object):
             self._current_odom = [0,0]
         else:
             time = self._odom_from_velocity_msg.header.stamp.to_sec() - self._prev_cmd_time
-            self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time
-            self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time
-            rospy.loginfo('self._current_odom: {0}'.format(self._current_odom))
+            if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
+                self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time
+                self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time
+                rospy.loginfo('self._current_odom: {0}'.format(self._current_odom))
 
         # save data for calculation later
         self._prev_cmd_vel = data
@@ -149,23 +150,22 @@ if __name__ == "__main__":
         if global_pose_obj._current_odom and global_pose_obj._init_odom:
             global_pose = get_global_info.get_global_pose(global_pose_obj._robot_start_pose, \
                 global_pose_obj._init_odom, global_pose_obj._current_odom)
-
-            #global_pose[0] += 0.001 # test
-            #global_pose[1] += 0.001 # test
-
-            # Pose msg
-            global_pose_obj._pose_msg.position.x = global_pose[0]
-            global_pose_obj._pose_msg.position.y = global_pose[1]
-            global_pose_obj._pose_pub.publish(global_pose_obj._pose_msg)
-
-            # posestamped_msg
-            global_pose_obj._posestamped_msg.header.stamp = rospy.Time.now()
-            global_pose_obj._posestamped_msg.pose.position.x = global_pose[0]
-            global_pose_obj._posestamped_msg.pose.position.y = global_pose[1]
-            #global_pose_obj._posestamped_pub.publish(global_pose_obj._posestamped_msg)
-
-        else:
+        else: # assume we are staying in place for now
             global_pose = global_pose_obj._robot_start_pose[0:2]
+
+        #global_pose[0] += 0.001 # test
+        #global_pose[1] += 0.001 # test
+
+        # Pose msg
+        global_pose_obj._pose_msg.position.x = global_pose[0]
+        global_pose_obj._pose_msg.position.y = global_pose[1]
+        global_pose_obj._pose_pub.publish(global_pose_obj._pose_msg)
+
+        # posestamped_msg
+        global_pose_obj._posestamped_msg.header.stamp = rospy.Time.now()
+        global_pose_obj._posestamped_msg.pose.position.x = global_pose[0]
+        global_pose_obj._posestamped_msg.pose.position.y = global_pose[1]
+        #global_pose_obj._posestamped_pub.publish(global_pose_obj._posestamped_msg)
 
         # update robot transform in rviz
         global_pose_obj._br.sendTransform((global_pose[0], global_pose[1], 0),
