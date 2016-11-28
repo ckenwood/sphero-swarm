@@ -35,7 +35,7 @@ if __name__=="__main__":
 
     # min 5 for lab ground
     # min 30 for lab carpet
-    vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(random.uniform(50,30),random.uniform(50,30),0), \
+    vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(0,40,0), \
                                       geometry_msgs.msg.Vector3(0,0,0))
 
     vel_msg_zero = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(0,0,0), \

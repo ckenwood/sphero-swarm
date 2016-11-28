@@ -105,7 +105,7 @@ class Sphero(object):
     
 
     def pub_cmd(self):
-        rospy.Subscriber(self.name + '/sphero_pose', geometry_msgs.msg.Pose, self.set_pose)
+        rospy.Subscriber(self.name + '/global_pose', geometry_msgs.msg.Pose, self.set_pose)
         self.update_velocity()
         vx = self.xvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
         vy = self.yvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
@@ -123,7 +123,6 @@ if __name__ == '__main__':
     rospy.init_node('social_force')
     # Initialize spheros: 
     for i in range(0,N_agents):
-        sphero_list[i]
         name_i = sphero_list[i]#'name' + str(i)
         if i%2 == 0:
             wp_i = np.array([1,0])
