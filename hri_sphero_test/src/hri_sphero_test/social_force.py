@@ -19,18 +19,20 @@ from std_msgs.msg import ColorRGBA, Float32, Bool
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sphero_node.cfg import ReconfigConfig
 
-SCALE = 50
+SCALE = 30
 class Sphero(object):
     # Force model constants:    
-    V0 = 1.0
+    V0 = 100.0
     R = 1.0
-    U0 = 1.0
+    U0 = 50.0
     sig = 1.0
 
     # Boundary constants:
     #xlim = np.array((-3,0),(3,0))
     #ylim = np.array((0,-3),(0,3))
-    bounds = [(-3,0),(3,0),(0,-3),(0,3)] # format: (x,y)
+    # changed limit to x = [0,3] and y = [0,3]
+    #bounds = [(-3,0),(3,0),(0,-3),(0,3)] # format: (x,y)
+    bounds = [(0,0),(3,0),(0,0),(0,3)] # format: (x,y)
    
     def __init__(self, number, name):
         self.xpos = 0.0
