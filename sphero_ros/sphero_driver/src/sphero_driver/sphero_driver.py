@@ -835,7 +835,9 @@ class Sphero(threading.Thread):
           else:
             print "got a packet that isn't streaming: " + self.data2hexstr(data)
         else:
-          raise RuntimeError("Bad SOF : " + self.data2hexstr(data))
+          sys.stdout.write("Runtime Error - Bad SOF : " + self.data2hexstr(data) + "\nReset data to empty list.\n")
+          data = [] # clear data
+
       self.raw_data_buf=data
 
   def parse_pwr_notify(self, data, data_length):
