@@ -11,17 +11,20 @@ import std_msgs.msg
 
 import get_global_info
 
-VELOCITY_COEFFICIENT = 3.0/4.0/100
+VELOCITY_COEFFICIENT = 0.80/100 #3.0/4.0/100
 
 class GlobalPoseObj(object):
     def __init__(self, args):
         # init odom
-        self._current_odom = None
+        self._current_odom_from_imu = None
+        self._current_odom = None # add in velocity
         self._init_odom = None
 
-        ### JUST FOR TESTING #####
-        #self._current_odom = [-1,0] # test
-        #self._init_odom = [0,0] # test
+        #initialize extrapolation list with velocity command
+        self._timestamp_list = []
+        self._dx_list = []
+        self._dy_list = []
+        self._last_idx = 0
 
         # get robot start pose
         self._robot_start_pose = ast.literal_eval(args.robot_start_pose)
@@ -73,19 +76,46 @@ class GlobalPoseObj(object):
         else:
             # subscribe odom info
             rospy.Subscriber(args.odom_topic, Odometry, callback=self.save_odometry)
+            self._prev_cmd_time = rospy.Time.now().to_sec()
+            rospy.Subscriber('cmd_vel', geometry_msgs.msg.Twist, callback=self.save_cmd_vel)
 
 
-    def save_odometry(data):
+    def save_odometry(self, data):
         # save initial
         if self._current_odom is None:
             self._init_odom = [data.pose.pose.position.x, data.pose.pose.position.y]
             rospy.loginfo('init odom: {0}'.format(self._init_odom))
 
-        self._current_odom = [data.pose.pose.position.x, data.pose.pose.position.y]
-        rospy.loginfo('current odom: {0}'.format(self._current_odom))
+        self._current_odom_from_imu = [data.pose.pose.position.x, data.pose.pose.position.y]
+
+        ## extrapolate with velocity command ##
+        # find idx that timestamp is slower
+        for idx in range(self._last_idx, len(self._timestamp_list)):
+            if self._timestamp_list[idx] > data.header.stamp.to_sec()-1.5:
+                break
+        else:
+            idx = len(self._timestamp_list)
+
+        if idx < len(self._timestamp_list): # extrapolating
+            #rospy.loginfo('Extrapolating: {0}'.format(self._timestamp_list[idx] > data.header.stamp.to_sec()-1.5))
+            self._current_odom[0] = data.pose.pose.position.x + sum(self._dx_list[idx:])
+            self._current_odom[1] = data.pose.pose.position.y + sum(self._dy_list[idx:])
+        else: # stays the same as just odom from imu
+            self._current_odom = [data.pose.pose.position.x, data.pose.pose.position.y]
+        self._last_idx = idx # save idx
+        #rospy.loginfo('current odom from imu: {0}, current odom: {1}'.format(self._current_odom_from_imu, self._current_odom))
 
         # forward odom
         self._odom_from_velocity_pub.publish(data)
+
+    def save_cmd_vel(self, data):
+        current_cmd_time = rospy.Time.now().to_sec()
+        time = current_cmd_time - self._prev_cmd_time
+        if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
+            self._timestamp_list.append(current_cmd_time)
+            self._dx_list.append(data.linear.x*VELOCITY_COEFFICIENT*time)
+            self._dy_list.append(data.linear.y*VELOCITY_COEFFICIENT*time)
+        self._prev_cmd_time = current_cmd_time
 
     def extrapolate_odom_from_velocity(self, data):
         self._odom_from_velocity_msg.header.stamp = rospy.Time.now()
