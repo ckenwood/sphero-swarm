@@ -19,20 +19,21 @@ from std_msgs.msg import ColorRGBA, Float32, Bool
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sphero_node.cfg import ReconfigConfig
 
-SCALE = 30
+SCALE = 40
+
 class Sphero(object):
     # Force model constants:    
-    V0 = 100.0
-    R = 1.0
-    U0 = 50.0
+    V0 = 0.0 # interagent
     sig = 1.0
+    U0 = 100.0 # bound
+    R = 0.1
 
     # Boundary constants:
     #xlim = np.array((-3,0),(3,0))
     #ylim = np.array((0,-3),(0,3))
     # changed limit to x = [0,3] and y = [0,3]
     #bounds = [(-3,0),(3,0),(0,-3),(0,3)] # format: (x,y)
-    bounds = [(0,0),(3,0),(0,0),(0,3)] # format: (x,y)
+    bounds = [(0,1.5),(3,1.5),(1.5,0),(1.5,3)] # format: (x,y)
    
     def __init__(self, number, name):
         self.xpos = 0.0
@@ -52,7 +53,7 @@ class Sphero(object):
          # Inertia, rate constants
         self.mass =  1.0
         self.rate = 100 # update rate in force-momentum equation; dt = 1/rate; F*dt = mass*dv
-
+        self.time = rospy.Time.now().to_sec()
     
     def set_wp(self,data):
         # Set the waypointing direction and magnitude for a sphero:
@@ -66,9 +67,9 @@ class Sphero(object):
             #print("Limits are :" + str(xlim) +" , " + str(ylim))
             bx = math.sqrt((self.xpos - xlim)**2) + eps
             by = math.sqrt((self.ypos - ylim)**2) + eps
-            if xlim != 0.0:
+            if xlim != 1.5:
                 b_force_x += (self.U0/self.R)* math.exp(-bx/self.R)*(self.xpos - xlim)/bx
-            if ylim != 0.0:
+            if ylim != 1.5:
                 b_force_y += (self.U0/self.R)* math.exp(-by/self.R)*(self.ypos - ylim)/by
 
         self.b_force[0] = b_force_x
@@ -84,12 +85,21 @@ class Sphero(object):
 
     def update_velocity(self):
         total_force = self.a_force + self.b_force + self.w_force
+        #dt = rospy.Time.now().to_sec() - self.time
         #print total_force
+        #self.xvel += (total_force[0]/(self.mass)) * dt
+        #self.yvel += (total_force[1]/(self.mass)) * dt
+        #!!!!!! from 30 to 40
+        #!!!!!! CAP xvel, yvel 30
+        # mapping of velocity
         self.xvel += (total_force[0]/(self.mass*self.rate))
         self.yvel += (total_force[1]/(self.mass*self.rate))
         self.speed = math.sqrt(self.xvel**2 + self.yvel**2)
         self.heading = math.atan2(self.ypos,self.xpos)
-        rospy.loginfo('b_force: {0}, total_force: {1}'.format(self.b_force, total_force))
+        if self.name == 'sphero_ypw':
+            rospy.loginfo('b_force: {0}, total_force: {1}'.format(self.b_force, total_force))
+            rospy.loginfo('xvel: {0}, yvel: {1}'.format(self.xvel, self.yvel))
+        self.time = rospy.Time.now().to_sec()
 
     def set_pose(self, msg):
         self.xpos = msg.position.x
@@ -111,6 +121,8 @@ class Sphero(object):
         self.update_velocity()
         vx = self.xvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
         vy = self.yvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
+        if self.name == 'sphero_ypw':
+            rospy.loginfo('vx: {0}, vy: {1}'.format(vx, vy))
         self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx,vy,0), geometry_msgs.msg.Vector3(0,0,0))
         self.cmd_vel_pub.publish(self.vel_msg)
         # Send updated velocity to Sphero
@@ -127,9 +139,9 @@ if __name__ == '__main__':
     for i in range(0,N_agents):
         name_i = sphero_list[i]#'name' + str(i)
         if i%2 == 0:
-            wp_i = np.array([1,0])
+            wp_i = np.array([10,0])
         else:
-            wp_i = np.array([-1,0])
+            wp_i = np.array([-10,0])
         spheros.append(Sphero(i,name_i))
         spheros[i].set_wp(wp_i)
 
