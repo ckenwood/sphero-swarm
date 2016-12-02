@@ -282,12 +282,16 @@ class SpheroNode(object):
         
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Start Sphero Node")
-    parser.add_argument('--target_name', type=str, help='Specify name of Sphero', nargs='?')
+    parser.add_argument('--target_name', type=str, help='Specify name of Sphero', nargs='?', \
+                            const='', default='')
     parser.add_argument('--target_addr', type=str, help='Specify address of Sphero', nargs='?', const='', default='')
     parser.add_argument('--port', type=int, help='Specify port of Sphero', nargs='?', const=1, default=1)
 
     args, unknown = parser.parse_known_args()
-    rospy.init_node(args.target_name.lower().replace('-','_'))
+    if args.target_name:
+        rospy.init_node(args.target_name.lower().replace('-','_'))
+    else:
+        rospy.init_node('Sphero')
     rospy.loginfo(args)
     rospy.loginfo('Sphero name: {0}'.format(args.target_name))
 
