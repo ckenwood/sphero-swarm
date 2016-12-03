@@ -52,10 +52,15 @@ class GlobalPoseObj(object):
 
         self._br = tf.TransformBroadcaster()     # setup broadcaster
 
-        # setup path
+        # setup path (with vel)
         self._path_msg = Path()
         self._path_msg.header.frame_id = '/world'
         self._path_pub = rospy.Publisher('path', Path, queue_size=10, latch=True) #args.robot_frame+'_path'
+
+        # setup path (odom only)
+        self._odom_only_path_msg = Path()
+        self._odom_only_path_msg.header.frame_id = '/world'
+        self._odom_only_path_pub = rospy.Publisher('odom_only_path', Path, queue_size=10, latch=True) #args.robot_frame+'_path'
 
         # odom from velocity pub
         self._odom_from_velocity_pub = rospy.Publisher('odom_from_velocity', Odometry, queue_size=10, latch=True)
@@ -134,7 +139,7 @@ class GlobalPoseObj(object):
             if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
                 self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time
                 self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time
-                rospy.loginfo('self._current_odom: {0}'.format(self._current_odom))
+                #rospy.loginfo('self._current_odom: {0}'.format(self._current_odom))
 
         # save data for calculation later
         self._prev_cmd_vel = data
@@ -160,7 +165,11 @@ if __name__ == "__main__":
     global_pose_obj = GlobalPoseObj(args)
 
     prev_time = rospy.Time.now()
-    #global_pose = [0,0] # test
+
+    #global_pose_obj._current_odom = [0,1] # test
+    #global_pose_obj._init_odom = [0,0] # test
+    #global_pose_obj._current_odom_from_imu = [0,0] # test
+
     while not rospy.is_shutdown():
         ####################
         ## start location ##
@@ -205,8 +214,28 @@ if __name__ == "__main__":
 
         # update robot path in rviz
         if rospy.Time.now() - prev_time > rospy.Duration(0.5):
+            ###################################
+            ### path with vel extrapolation ###
+            ###################################
             global_pose_obj._path_msg.poses.append(copy.deepcopy(global_pose_obj._posestamped_msg))
             global_pose_obj._path_pub.publish(global_pose_obj._path_msg)
+
+            ###########################
+            ### path with odom only ###
+            ###########################
+            if global_pose_obj._current_odom_from_imu and global_pose_obj._init_odom:
+                global_odom_only_pose = get_global_info.get_global_pose(global_pose_obj._robot_start_pose, \
+                    global_pose_obj._init_odom, global_pose_obj._current_odom_from_imu)
+            else: # assume we are staying in place for now
+                global_odom_only_pose = global_pose_obj._robot_start_pose[0:2]
+
+            # update to odom only pose
+            global_pose_obj._posestamped_msg.pose.position.x = global_odom_only_pose[0]
+            global_pose_obj._posestamped_msg.pose.position.y = global_odom_only_pose[1]
+            global_pose_obj._odom_only_path_msg.poses.append(\
+                copy.deepcopy(global_pose_obj._posestamped_msg))
+            global_pose_obj._odom_only_path_pub.publish(global_pose_obj._odom_only_path_msg)
+
             prev_time = rospy.Time.now()
             #rospy.loginfo('We came here!' + str(global_pose_obj._path_msg))
 
