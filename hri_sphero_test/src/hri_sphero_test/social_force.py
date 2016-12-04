@@ -23,7 +23,7 @@ SCALE = 40
 
 class Sphero(object):
     # Force model constants:    
-    V0 = 50.0 # interagent
+    V0 = 30.0 # interagent
     sig = 1.0
     U0 = 100.0 # bound
     R = 0.1
@@ -87,7 +87,11 @@ class Sphero(object):
         self.a_force = (V0/sig)*(math.exp(-b/sig))*np.array([self.xpos - other.xpos , self.ypos - other.ypos])/b
 
     def update_velocity(self):
-        total_force = self.a_force + self.b_force + self.w_force
+        coefficient = 1
+        if abs(1.5-self.xpos) > 1.5:
+            coefficient = -1
+        corrected_w_force = coefficient* self.w_force
+        total_force = self.a_force + self.b_force + corrected_w_force
         #dt = rospy.Time.now().to_sec() - self.time
         #print total_force
         #self.xvel += (total_force[0]/(self.mass)) * dt
@@ -139,7 +143,7 @@ class Sphero(object):
         # vy = self.yvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
         
         # Do a linear mapping instead of scaling: from 30 to 40 in each case
-        v_l = 30 # Lower and upper limits for the linear mapping
+        v_l = 10 # Lower and upper limits for the linear mapping
         v_h = 40
         v_clamp = self.v_clamp
         if self.xvel >= 0:
@@ -176,7 +180,7 @@ class Sphero(object):
 
         
 if __name__ == '__main__':
-    sphero_list = ['sphero_ypw', 'sphero_wrb']
+    sphero_list = ['sphero_rgw', 'sphero_wrb']
     N_agents = 2
     spheros = []
     w_force = 100

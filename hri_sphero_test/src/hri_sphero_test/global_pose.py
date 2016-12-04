@@ -118,8 +118,8 @@ class GlobalPoseObj(object):
         time = current_cmd_time - self._prev_cmd_time
         if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
             self._timestamp_list.append(current_cmd_time)
-            self._dx_list.append(data.linear.x*VELOCITY_COEFFICIENT*time)
-            self._dy_list.append(data.linear.y*VELOCITY_COEFFICIENT*time)
+            self._dx_list.append(data.linear.x*VELOCITY_COEFFICIENT*time if abs(data.linear.x) >= 30 else 0)
+            self._dy_list.append(data.linear.y*VELOCITY_COEFFICIENT*time if abs(data.linear.y) >= 30 else 0)
         self._prev_cmd_time = current_cmd_time
 
     def extrapolate_odom_from_velocity(self, data):
@@ -137,8 +137,8 @@ class GlobalPoseObj(object):
         else:
             time = self._odom_from_velocity_msg.header.stamp.to_sec() - self._prev_cmd_time
             if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
-                self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time
-                self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time
+                self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time if abs(data.linear.x) >= 30 else 0
+                self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time if abs(data.linear.y) >= 30 else 0
                 #rospy.loginfo('self._current_odom: {0}'.format(self._current_odom))
 
         # save data for calculation later
