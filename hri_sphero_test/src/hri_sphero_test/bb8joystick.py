@@ -23,7 +23,7 @@ from std_msgs.msg import ColorRGBA, Float32, Bool
 
 
 
-name = 'bb8sphero'
+name = 'sphero_bb8'
 rospy.init_node(name)
 bb8 = BB8_driver.Sphero()
 
