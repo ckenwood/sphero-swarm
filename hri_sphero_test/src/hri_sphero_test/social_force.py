@@ -23,7 +23,7 @@ SCALE = 40
 
 class Sphero(object):
     # Force model constants:    
-    V0 = 0.0 # interagent
+    V0 = 50.0 # interagent
     sig = 1.0
     U0 = 100.0 # bound
     R = 0.1
@@ -35,6 +35,9 @@ class Sphero(object):
     #bounds = [(-3,0),(3,0),(0,-3),(0,3)] # format: (x,y)
     bounds = [(0,1.5),(3,1.5),(1.5,0),(1.5,3)] # format: (x,y)
    
+    # Clamping the velocity
+    v_clamp = 30   
+
     def __init__(self, number, name):
         self.xpos = 0.0
         self.ypos = 0.0
@@ -93,7 +96,19 @@ class Sphero(object):
         #!!!!!! CAP xvel, yvel 30
         # mapping of velocity
         self.xvel += (total_force[0]/(self.mass*self.rate))
-        self.yvel += (total_force[1]/(self.mass*self.rate))
+        self.yvel += (total_force[1]/(self.mass*self.rate))     
+
+        v_clamp = self.v_clamp
+
+        if self.xvel >= v_clamp:        
+            self.xvel = v_clamp
+        elif self.xvel <= -v_clamp:
+            self.xvel = -v_clamp
+        if self.yvel >= v_clamp:        
+            self.yvel = v_clamp
+        elif self.yvel <= -v_clamp:
+            self.yvel = -v_clamp
+
         self.speed = math.sqrt(self.xvel**2 + self.yvel**2)
         self.heading = math.atan2(self.ypos,self.xpos)
         if self.name == 'sphero_ypw':
@@ -119,11 +134,41 @@ class Sphero(object):
     def pub_cmd(self):
         rospy.Subscriber(self.name + '/global_pose', geometry_msgs.msg.Pose, self.set_pose)
         self.update_velocity()
-        vx = self.xvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
-        vy = self.yvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
+        
+        # vx = self.xvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
+        # vy = self.yvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
+        
+        # Do a linear mapping instead of scaling: from 30 to 40 in each case
+        v_l = 30 # Lower and upper limits for the linear mapping
+        v_h = 40
+        v_clamp = self.v_clamp
+        if self.xvel >= 0:
+            vx = v_l + (v_h-v_l)*self.xvel/(v_clamp)
+        else:
+            vx = -v_l + (v_h-v_l)*self.xvel/(v_clamp) 
+
+        if self.yvel >= 0:
+            vy = v_l + (v_h-v_l)*self.yvel/(v_clamp)
+        else:
+            vy = -v_l + (v_h-v_l)*self.yvel/(v_clamp) 
+        
+        # Just for simulation. Comment out the vx2,vy2 publisher for real tests
+        v_l2 = 0
+        if self.xvel >= 0:
+            vx2 = v_l2 + (v_h-v_l2)*self.xvel/(v_clamp)
+        else:
+            vx2 = -v_l + (v_h-v_l2)*self.xvel/(v_clamp) 
+
+        if self.yvel >= 0:
+            vy2 = v_l2 + (v_h-v_l2)*self.yvel/(v_clamp)
+        else:
+            vy2 = -v_l2 + (v_h-v_l2)*self.yvel/(v_clamp) 
+        
+
         if self.name == 'sphero_ypw':
             rospy.loginfo('vx: {0}, vy: {1}'.format(vx, vy))
         self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx,vy,0), geometry_msgs.msg.Vector3(0,0,0))
+        #self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx2,vy2,0), geometry_msgs.msg.Vector3(0,0,0))
         self.cmd_vel_pub.publish(self.vel_msg)
         # Send updated velocity to Sphero
 
@@ -134,14 +179,15 @@ if __name__ == '__main__':
     sphero_list = ['sphero_ypw', 'sphero_wrb']
     N_agents = 2
     spheros = []
+    w_force = 100
     rospy.init_node('social_force')
     # Initialize spheros: 
     for i in range(0,N_agents):
         name_i = sphero_list[i]#'name' + str(i)
         if i%2 == 0:
-            wp_i = np.array([10,0])
+            wp_i = np.array([w_force,0])
         else:
-            wp_i = np.array([-10,0])
+            wp_i = np.array([-w_force,0])
         spheros.append(Sphero(i,name_i))
         spheros[i].set_wp(wp_i)
 
