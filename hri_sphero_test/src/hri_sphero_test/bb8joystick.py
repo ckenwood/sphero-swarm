@@ -11,6 +11,7 @@ import BB8_driver
 import rospy
 
 import math
+import numpy as np
 import sys
 import tf
 import PyKDL
@@ -37,12 +38,16 @@ bb8.set_rgb_led(0, 0, 0, 0, False)
 bb8.set_rotation_rate(1, False)
 
 
-cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size = 1)
+cmd_vel_pub = rospy.Publisher('cmd_vel', Twist, queue_size = 1)
 
 def publish_cmd_vel(v, thet):
     # Convert speed and heading to cmd_vel and publish
+    scale = 56
     vx = v*math.sin(math.pi*thet/180) # atan2 in cmd_vel has opposite order atan2(vx,vy) instead of atan2(y,x)
     vy = v*math.cos(math.pi*thet/180)
+    eps = np.finfo(float).eps
+    vx = vx*scale/(v+eps)
+    vy = vy*scale/(v+eps)
     linear = Vector3(vx,vy,0)
     angular = Vector3(0,0,math.pi*thet/180)
     pub_msg = Twist(linear,angular)
