@@ -139,7 +139,9 @@ class GlobalPoseObj(object):
             if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
                 self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time if abs(data.linear.x) >= 30 else 0
                 self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time if abs(data.linear.y) >= 30 else 0
-                #rospy.loginfo('self._current_odom: {0}'.format(self._current_odom))
+                rospy.loginfo('--self._current_odom: {0}'.format(self._current_odom))
+                rospy.loginfo('--vx: {0}, vy: {1}'.format(data.linear.x, data.linear.y))
+                rospy.loginfo('--dx: {0}, dy: {1}'.format(data.linear.x*VELOCITY_COEFFICIENT*time, data.linear.y*VELOCITY_COEFFICIENT*time))
 
         # save data for calculation later
         self._prev_cmd_vel = data
