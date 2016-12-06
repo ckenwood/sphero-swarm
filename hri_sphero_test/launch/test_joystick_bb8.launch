@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+	<node ns="sphero_bb8" name="sphero_bb8" pkg="hri_sphero_test" type="bb8joystick.py" output="screen"/>
+</launch>
