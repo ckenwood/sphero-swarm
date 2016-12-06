@@ -8,7 +8,7 @@ import math
 import struct
 #import BB8_driver
 #from sphero_driver import sphero_driver
-from sphero import SpheroNode
+#from sphero import SpheroNode
 
 import rospy
 
