@@ -37,6 +37,7 @@ import struct
 import time
 import operator
 import threading
+import traceback
 
 #These are the message response code that can be return by Sphero.
 MRSP = dict(
@@ -199,6 +200,9 @@ class BTInterface(object):
     else:
         sys.stdout.write("Connecting to device: " + self.target_address + "...")
 
+    return self.pair_with_bluetooth()
+
+  def pair_with_bluetooth(self):
     try:
       self.sock=bluetooth.BluetoothSocket(bluetooth.RFCOMM)
       self.sock.connect((self.target_address,self.port))
@@ -215,7 +219,15 @@ class BTInterface(object):
     self.sock.send(data)
 
   def recv(self, num_bytes):
-    return self.sock.recv(num_bytes)
+    try:
+      return self.sock.recv(num_bytes)
+    except bluetooth.btcommon.BluetoothError as error:
+      print "== Bluetooth Error!! ==\n"
+      print error
+      traceback.print_exc()
+      # will try to pair again
+      print "Reconnection of bluetooth: {0}".format(self.pair_with_bluetooth())
+      return []
 
   def close(self):
     self.sock.close()
@@ -755,7 +767,13 @@ class Sphero(threading.Thread):
 
   def run(self):
     # this is larger than any single packet
-    self.recv(1024)
+    while self.is_connected and not self.shutdown:
+      try:
+        self.recv(1024)
+      except:
+        traceback.print_exc()
+        sys.stdout.write("We will ignore this error and continue...\n")
+
 
   def recv(self, num_bytes):
     '''
