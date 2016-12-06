@@ -7,8 +7,6 @@ Panels:
         - /Global Options1
         - /Status1
         - /TF1/Frames1
-        - /Path_BB81
-        - /Path(odom only)_BB81
       Splitter Ratio: 0.625
     Tree Height: 466
   - Class: rviz/Selection
@@ -62,11 +60,17 @@ Visualization Manager:
           Value: true
         map:
           Value: true
-        sphero_bb8:
+        sphero_ggw:
           Value: true
         sphero_rgw:
           Value: true
+        sphero_wpp:
+          Value: true
         sphero_wrb:
+          Value: true
+        sphero_yoo:
+          Value: true
+        sphero_ypw:
           Value: true
         world:
           Value: true
@@ -79,11 +83,17 @@ Visualization Manager:
         world:
           map:
             {}
-          sphero_bb8:
+          sphero_ggw:
             {}
           sphero_rgw:
             {}
+          sphero_wpp:
+            {}
           sphero_wrb:
+            {}
+          sphero_yoo:
+            {}
+          sphero_ypw:
             {}
       Update Interval: 0
       Value: true
@@ -151,6 +161,72 @@ Visualization Manager:
       Shaft Diameter: 0.1
       Shaft Length: 0.1
       Topic: /sphero_rgw/path
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 255; 85; 255
+      Enabled: true
+      Head Diameter: 0.3
+      Head Length: 0.2
+      Length: 0.3
+      Line Style: Lines
+      Line Width: 0.03
+      Name: Path_WPP
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Style: None
+      Radius: 0.03
+      Shaft Diameter: 0.1
+      Shaft Length: 0.1
+      Topic: /sphero_wpp/path
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 255; 85; 255
+      Enabled: true
+      Head Diameter: 0.3
+      Head Length: 0.2
+      Length: 0.3
+      Line Style: Lines
+      Line Width: 0.03
+      Name: Path_YOO
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Style: None
+      Radius: 0.03
+      Shaft Diameter: 0.1
+      Shaft Length: 0.1
+      Topic: /sphero_yoo/path
+      Unreliable: false
+      Value: true
+    - Alpha: 1
+      Buffer Length: 1
+      Class: rviz/Path
+      Color: 255; 85; 255
+      Enabled: true
+      Head Diameter: 0.3
+      Head Length: 0.2
+      Length: 0.3
+      Line Style: Lines
+      Line Width: 0.03
+      Name: Path_GGW
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Pose Style: None
+      Radius: 0.03
+      Shaft Diameter: 0.1
+      Shaft Length: 0.1
+      Topic: /sphero_ggw/path
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -287,7 +363,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10.5859
+      Distance: 4.38863
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1

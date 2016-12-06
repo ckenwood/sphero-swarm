@@ -21,8 +21,8 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sphero_node.cfg import ReconfigConfig
 
 SCALE = 40
-IS_ROS_NODE = False
-CONTROLLED_AGENT = 'sphero_ypw'
+IS_ROS_NODE = True
+CONTROLLED_AGENT = 'sphero_ggw'
 
 def pairs(lst):
     i = iter(lst)
@@ -233,8 +233,10 @@ class Sphero(object):
 if __name__ == '__main__':
     #sphero_list = ['sphero_rgw', 'sphero_wrb']
     #N_agents = 2
-    sphero_list = ['sphero_rgw', 'sphero_wrb', CONTROLLED_AGENT]
-    N_agents = 3
+    #sphero_list = ['sphero_rgw', 'sphero_wrb', CONTROLLED_AGENT]
+    #N_agents = 3
+    sphero_list = ['sphero_rgw', 'sphero_wrb', 'sphero_yoo', 'sphero_wpp', CONTROLLED_AGENT]
+    N_agents = 5
     spheros = []
     w_force = 100
     if IS_ROS_NODE: rospy.init_node('social_force')
