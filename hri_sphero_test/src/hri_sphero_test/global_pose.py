@@ -12,6 +12,7 @@ import std_msgs.msg
 import get_global_info
 
 VELOCITY_COEFFICIENT = 0.80/100 #3.0/4.0/100
+VELOCITY_COEFFICIENT_BB8 = 0.10/100 #3.0/4.0/100
 
 class GlobalPoseObj(object):
     def __init__(self, args):
@@ -118,8 +119,13 @@ class GlobalPoseObj(object):
         time = current_cmd_time - self._prev_cmd_time
         if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
             self._timestamp_list.append(current_cmd_time)
-            self._dx_list.append(data.linear.x*VELOCITY_COEFFICIENT*time if abs(data.linear.x) >= 30 else 0)
-            self._dy_list.append(data.linear.y*VELOCITY_COEFFICIENT*time if abs(data.linear.y) >= 30 else 0)
+            if self._robot_frame != 'sphero_bb8':
+                self._dx_list.append(data.linear.x*VELOCITY_COEFFICIENT*time if abs(data.linear.x) >= 30 else 0)
+                self._dy_list.append(data.linear.y*VELOCITY_COEFFICIENT*time if abs(data.linear.y) >= 30 else 0)
+            else:
+                self._dx_list.append(0)#data.linear.x*VELOCITY_COEFFICIENT_BB8*time if abs(data.linear.x) >= 30 else 0)
+                self._dy_list.append(0)#data.linear.y*VELOCITY_COEFFICIENT_BB8*time if abs(data.linear.y) >= 30 else 0)
+
         self._prev_cmd_time = current_cmd_time
 
     def extrapolate_odom_from_velocity(self, data):
@@ -137,8 +143,13 @@ class GlobalPoseObj(object):
         else:
             time = self._odom_from_velocity_msg.header.stamp.to_sec() - self._prev_cmd_time
             if not time > 5.0: # !!!! if too long, that probably means we stopped in the middle
-                self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time if abs(data.linear.x) >= 30 else 0
-                self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time if abs(data.linear.y) >= 30 else 0
+                if self._robot_frame != 'sphero_bb8':
+                    self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT*time if abs(data.linear.x) >= 30 else 0
+                    self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT*time if abs(data.linear.y) >= 30 else 0
+                else:
+                    self._current_odom[0] += data.linear.x*VELOCITY_COEFFICIENT_BB8*time if abs(data.linear.x) >= 30 else 0
+                    self._current_odom[1] += data.linear.y*VELOCITY_COEFFICIENT_BB8*time if abs(data.linear.y) >= 30 else 0
+
                 rospy.loginfo('--self._current_odom: {0}'.format(self._current_odom))
                 rospy.loginfo('--vx: {0}, vy: {1}'.format(data.linear.x, data.linear.y))
                 rospy.loginfo('--dx: {0}, dy: {1}'.format(data.linear.x*VELOCITY_COEFFICIENT*time, data.linear.y*VELOCITY_COEFFICIENT*time))

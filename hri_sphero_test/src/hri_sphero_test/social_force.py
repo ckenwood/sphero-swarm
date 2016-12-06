@@ -22,6 +22,7 @@ from sphero_node.cfg import ReconfigConfig
 
 SCALE = 40
 IS_ROS_NODE = True
+CONTROLLED_AGENT = 'sphero_ypw'
 
 def pairs(lst):
     i = iter(lst)
@@ -208,7 +209,7 @@ class Sphero(object):
         #rospy.loginfo(self.name+ ' vx2: {0}, vy2: {1}'.format(vx2, vy2))
         rospy.loginfo(self.name+' vx: {0}, vy: {1}'.format(vx, vy))
 
-        if self.name != 'sphero_bb8':
+        if self.name != CONTROLLED_AGENT:
             self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx,vy,0), geometry_msgs.msg.Vector3(0,0,0))
             #self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx2,vy2,0), geometry_msgs.msg.Vector3(0,0,0))
             self.cmd_vel_pub.publish(self.vel_msg)
@@ -218,10 +219,10 @@ class Sphero(object):
 
         
 if __name__ == '__main__':
-    sphero_list = ['sphero_rgw', 'sphero_wrb']
-    N_agents = 2
-    #sphero_list = ['sphero_rgw', 'sphero_wrb', 'sphero_bb8']
-    #N_agents = 3
+    #sphero_list = ['sphero_rgw', 'sphero_wrb']
+    #N_agents = 2
+    sphero_list = ['sphero_rgw', 'sphero_wrb', CONTROLLED_AGENT]
+    N_agents = 3
     spheros = []
     w_force = 100
     if IS_ROS_NODE: rospy.init_node('social_force')
@@ -277,6 +278,9 @@ if __name__ == '__main__':
         obj_wrb = spheros[1]
         obj_wrb.xpos = 2.5
         obj_wrb.ypos = 1.5
+        obj_bb8 = spheros[2]
+        obj_bb8.xpos = 0.5
+        obj_bb8.ypos = 0.5
         for x_row in x:
             for idx_x_row, x_coord in enumerate(x_row):
                 for idx_y_row, y_row in enumerate(y):
