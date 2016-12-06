@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+		<node ns="sphero_rgw" name="sphero_rgw" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-RGW --target_addr 68:86:E7:09:77:D4" respawn="true" output="screen"/>
+		<node ns="sphero_joystick" name="sphero_joystick" pkg="sphero_node" args="--target_name Sphero-RGW --target_addr 68:86:E7:09:77:D4" respawn="true" type="sphero_joystick.py" output="screen"/>
+</launch>
