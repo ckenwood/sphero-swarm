@@ -7,6 +7,7 @@ import sys
 import tf
 import PyKDL
 import numpy as np
+import time
 
 from sphero_driver import sphero_driver
 import dynamic_reconfigure.server
@@ -20,10 +21,19 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sphero_node.cfg import ReconfigConfig
 
 SCALE = 40
+IS_ROS_NODE = False
+
+def pairs(lst):
+    i = iter(lst)
+    first = prev = item = i.next()
+    for item in i:
+        yield prev, item
+        prev = item
+    yield item, first
 
 class Sphero(object):
     # Force model constants:    
-    V0 = 300.0 # interagent
+    V0 = 200.0 # interagent
     sig = 1
     U0 = 500.0 # bound
     R = 0.05
@@ -33,14 +43,14 @@ class Sphero(object):
     #ylim = np.array((0,-3),(0,3))
     # changed limit to x = [0,3] and y = [0,3]
     #bounds = [(-3,0),(3,0),(0,-3),(0,3)] # format: (x,y)
-    bounds = [(0,1.5),(3,1.5),(1.5,0),(1.5,3)] # format: (x,y)
-   
+    bounds = [(0,0),(3,0),(3,3),(0,3)] # format: (x,y)
+
     # Clamping the velocity
     v_clamp = 30   
 
     def __init__(self, number, name):
-        self.xpos = 0.0
-        self.ypos = 0.0
+        self.xpos = None#0.0
+        self.ypos = None#0.0
         self.xvel = 0.0
         self.yvel = 0.0
         self.vx_imu = 0.0
@@ -52,11 +62,18 @@ class Sphero(object):
         self.heading = 0.0
         self.number = number
         self.name = name
-        self.cmd_vel_pub = rospy.Publisher(self.name + '/cmd_vel', Twist, queue_size = 10)
+        if IS_ROS_NODE: self.cmd_vel_pub = rospy.Publisher(self.name + '/cmd_vel', Twist, queue_size = 10)
+        if IS_ROS_NODE: rospy.Subscriber(self.name+'/global_pose', geometry_msgs.msg.Pose, self.set_pose)
+
          # Inertia, rate constants
         self.mass =  1.0
         self.rate = 100 # update rate in force-momentum equation; dt = 1/rate; F*dt = mass*dv
-        self.time = rospy.Time.now().to_sec()
+        if IS_ROS_NODE: self.time = rospy.Time.now().to_sec()
+
+        self.xmax = max(corner[0] for corner in self.bounds)
+        self.ymax = max(corner[1] for corner in self.bounds)
+        self.xmin = min(corner[0] for corner in self.bounds)
+        self.ymin = min(corner[1] for corner in self.bounds)
     
     def set_wp(self,data):
         # Set the waypointing direction and magnitude for a sphero:
@@ -66,14 +83,25 @@ class Sphero(object):
         eps = np.finfo(float).eps
         b_force_x = 0.0
         b_force_y = 0.0
-        for (xlim,ylim) in self.bounds:
+        for ((xlim_1, ylim_1), (xlim_2, ylim_2)) in pairs(self.bounds):
             #print("Limits are :" + str(xlim) +" , " + str(ylim))
-            bx = math.sqrt((self.xpos - xlim)**2) + eps
-            by = math.sqrt((self.ypos - ylim)**2) + eps
-            if xlim != 1.5:
-                b_force_x += (self.U0/self.R)* math.exp(-bx/self.R)*(self.xpos - xlim)/bx
-            if ylim != 1.5:
-                b_force_y += (self.U0/self.R)* math.exp(-by/self.R)*(self.ypos - ylim)/by
+            if xlim_1 == xlim_2: # different y
+                if self.xmax <= self.xpos:
+                    b_force_x -= (self.U0)*0.2
+                elif self.xmin >= self.xpos:
+                    b_force_x += (self.U0)*0.2
+                else:
+                    bx = math.sqrt((self.xpos - xlim_1)**2) + eps
+                    b_force_x += (self.U0/self.R)* math.exp(-bx/self.R)*(self.xpos - xlim_1)/bx
+
+            if ylim_1 == ylim_2: # different x
+                if self.ymax <= self.ypos:
+                    b_force_y -= (self.U0)*0.2
+                elif self.ymin >= self.ypos:
+                    b_force_y += (self.U0)*0.2
+                else:
+                    by = math.sqrt((self.ypos - ylim_1)**2) + eps
+                    b_force_y += (self.U0/self.R)* math.exp(-by/self.R)*(self.ypos - ylim_1)/by
 
         self.b_force[0] = b_force_x
         self.b_force[1] = b_force_y
@@ -115,10 +143,13 @@ class Sphero(object):
 
         self.speed = math.sqrt(self.xvel**2 + self.yvel**2)
         self.heading = math.atan2(self.ypos,self.xpos)
-        if self.name == 'sphero_rgw':
-            rospy.loginfo('b_force: {0}, total_force: {1}'.format(self.b_force, total_force))
-            rospy.loginfo('xvel: {0}, yvel: {1}'.format(self.xvel, self.yvel))
-        self.time = rospy.Time.now().to_sec()
+
+        rospy.loginfo(self.name +' xpos: {0}, ypos: {1}'.format(self.xpos, self.ypos))
+        rospy.loginfo(self.name +' b_force: {0}, total_force: {1}'.format(self.b_force, total_force))
+        rospy.loginfo(self.name +' xvel: {0}, yvel: {1}'.format(self.xvel, self.yvel))
+        if IS_ROS_NODE: self.time = rospy.Time.now().to_sec()
+
+        return total_force
 
     def set_pose(self, msg):
         self.xpos = msg.position.x
@@ -136,7 +167,6 @@ class Sphero(object):
     
 
     def pub_cmd(self):
-        rospy.Subscriber(self.name + '/global_pose', geometry_msgs.msg.Pose, self.set_pose)
         self.update_velocity()
         
         # vx = self.xvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
@@ -146,12 +176,16 @@ class Sphero(object):
         v_l = 30 # Lower and upper limits for the linear mapping
         v_h = 40
         v_clamp = self.v_clamp
-        if self.xvel >= 0:
+        if self.xvel == 0:
+            vx = 0
+        elif self.xvel > 0:
             vx = v_l + (v_h-v_l)*self.xvel/(v_clamp)
         else:
             vx = -v_l + (v_h-v_l)*self.xvel/(v_clamp) 
 
-        if self.yvel >= 0:
+        if self.yvel == 0:
+            vy = 0
+        elif self.yvel > 0:
             vy = v_l + (v_h-v_l)*self.yvel/(v_clamp)
         else:
             vy = -v_l + (v_h-v_l)*self.yvel/(v_clamp) 
@@ -171,11 +205,12 @@ class Sphero(object):
 
         #if self.name == 'sphero_rgw':
             #rospy.loginfo('vx: {0}, vy: {1}'.format(vx, vy))
-        rospy.loginfo(self.name+ ' vx2: {0}, vy2: {1}'.format(vx2, vy2))
+        #rospy.loginfo(self.name+ ' vx2: {0}, vy2: {1}'.format(vx2, vy2))
+        rospy.loginfo(self.name+' vx: {0}, vy: {1}'.format(vx, vy))
 
         if self.name != 'sphero_bb8':
-            #self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx,vy,0), geometry_msgs.msg.Vector3(0,0,0))
-            self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx2,vy2,0), geometry_msgs.msg.Vector3(0,0,0))
+            self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx,vy,0), geometry_msgs.msg.Vector3(0,0,0))
+            #self.vel_msg = geometry_msgs.msg.Twist(geometry_msgs.msg.Vector3(vx2,vy2,0), geometry_msgs.msg.Vector3(0,0,0))
             self.cmd_vel_pub.publish(self.vel_msg)
             # Send updated velocity to Sphero
 
@@ -189,7 +224,7 @@ if __name__ == '__main__':
     #N_agents = 3
     spheros = []
     w_force = 100
-    rospy.init_node('social_force')
+    if IS_ROS_NODE: rospy.init_node('social_force')
     # Initialize spheros: 
     for i in range(0,N_agents):
         name_i = sphero_list[i]#'name' + str(i)
@@ -201,18 +236,74 @@ if __name__ == '__main__':
         spheros[i].set_wp(wp_i)
 
     r = 100 # rate of 100 Hz
-    rate = rospy.Rate(r)
-    while not rospy.is_shutdown():
+    if IS_ROS_NODE:
+        rate = rospy.Rate(r)
 
-        # Publish velocities based on the force: 
-        for obj in spheros:
-            obj.pub_cmd()
-    
-        # Calculate boundary forces:
-        for obj in spheros:
-            obj.bound_repulse()
-            for obj2 in spheros:
-                if obj2 != obj:
-                    obj.agent_repulse(obj2)
+        while not rospy.is_shutdown():
 
-        rate.sleep()
+            # make sure we get pose before moving
+            if not all([obj.xpos for obj in spheros] + [obj.ypos for obj in spheros]):
+                print [obj.xpos for obj in spheros] + [obj.ypos for obj in spheros]
+                time.sleep(0.2)
+                continue
+
+            # Publish velocities based on the force:
+            for obj in spheros:
+                obj.pub_cmd()
+
+            # Calculate boundary forces:
+            for obj in spheros:
+                obj.bound_repulse()
+                for obj2 in spheros:
+                    if obj2 != obj:
+                        obj.agent_repulse(obj2)
+
+            rate.sleep()
+    else:
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        # Set limits and number of points in grid
+        SPACING_Y = 13j
+        SPACING_X = 13j
+        y, x = np.mgrid[0:3:SPACING_Y, 0:3:SPACING_X]
+        print("x: [\n"+'\n'.join(" ".join('{:7.4f}'.format(k) for k in x_list) for x_list in x)+"]\n")
+        print("y: [\n"+'\n'.join(" ".join('{:7.4f}'.format(k) for k in y_list) for y_list in y)+"]\n")
+
+        fy, fx = np.mgrid[0:0:SPACING_Y, 0:0:SPACING_X]
+        obj = spheros[0]
+
+        # force init pos for now
+        obj_wrb = spheros[1]
+        obj_wrb.xpos = 2.5
+        obj_wrb.ypos = 1.5
+        for x_row in x:
+            for idx_x_row, x_coord in enumerate(x_row):
+                for idx_y_row, y_row in enumerate(y):
+                    for y_coord in y_row:
+                        obj.xpos = x_coord
+                        obj.ypos = y_coord
+                        obj.bound_repulse()
+                        for obj2 in spheros:
+                            if obj2 != obj:
+                                obj.agent_repulse(obj2)
+
+                        total_force = obj.update_velocity()
+                        fy[idx_y_row][idx_x_row] = total_force[1]#idx_y_row
+                        fx[idx_y_row][idx_x_row] = total_force[0]#idx_x_row
+
+        print("fx: [\n"+'\n'.join(" ".join('{:7.4f}'.format(k) for k in fx_list) for fx_list in fx)+"]\n")
+        print("fy: [\n"+'\n'.join(" ".join('{:7.4f}'.format(k) for k in fy_list) for fy_list in fy)+"]\n")
+
+
+        fs = np.array([math.sqrt(fx_component**2 + fy_component**2) for fx_component, fy_component in zip(np.ravel(fx), np.ravel(fy))])
+        f = np.flipud(fs.reshape(fx.shape))
+
+        # plot!
+        fig, ax = plt.subplots()
+        im = ax.imshow(f, extent=[x.min(), x.max(), y.min(), y.max()])
+        fig.colorbar(im)
+
+        ax.quiver(x, y, fx, fy, units='height')
+        ax.set(aspect=1, title='Force Field')
+        plt.show()
