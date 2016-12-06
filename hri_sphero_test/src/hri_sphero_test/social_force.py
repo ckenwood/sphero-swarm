@@ -268,7 +268,7 @@ if __name__ == '__main__':
             for obj in spheros:
                 obj.bound_repulse()
                 obj.wp_attraction()
-                obj.a_force = np.array([0,0])
+                obj.a_force = np.array([0.0,0.0])
                 for obj2 in spheros:
                     if obj2 != obj:
                         obj.agent_repulse(obj2)
@@ -303,7 +303,7 @@ if __name__ == '__main__':
                         obj.ypos = y_coord
                         obj.bound_repulse()
                         obj.wp_attraction()
-                        obj.a_force = np.array([0,0])                        
+                        obj.a_force = np.array([0.0,0.0])
                         for obj2 in spheros:
                             if obj2 != obj:
                                 obj.agent_repulse(obj2)
@@ -325,5 +325,5 @@ if __name__ == '__main__':
         fig.colorbar(im)
 
         ax.quiver(x, y, fx, fy, units='height')
-        ax.set(aspect=1, title='Force Field')
+        ax.set(aspect=1, title='Force Field', xlabel='x(m)', ylabel='y(m)')
         plt.show()
