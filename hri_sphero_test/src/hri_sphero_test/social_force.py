@@ -21,7 +21,7 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sphero_node.cfg import ReconfigConfig
 
 SCALE = 40
-IS_ROS_NODE = True
+IS_ROS_NODE = False
 CONTROLLED_AGENT = 'sphero_ypw'
 
 def pairs(lst):
@@ -78,7 +78,12 @@ class Sphero(object):
     
     def set_wp(self,data):
         # Set the waypointing direction and magnitude for a sphero:
-        self.w_force = data
+        self.w_force_mag = data
+        if data[0] > 0:
+            self.wp_points = np.array([2.5,1.5]) # single point WP for rightward agents
+        else:
+            self.wp_points = np.array([0.5,1.5]) # for leftward agents
+
 
     def bound_repulse(self):
         eps = np.finfo(float).eps
@@ -113,8 +118,15 @@ class Sphero(object):
         V0 = self.V0
         sig = self.sig
         b = math.sqrt((self.xpos - other_x)**2 + (self.ypos - other_y)**2) + eps
-        self.a_force = (V0/sig)*(math.exp(-b/sig))*np.array([self.xpos - other.xpos , self.ypos - other.ypos])/b
-
+        self.a_force += (V0/sig)*(math.exp(-b/sig))*np.array([self.xpos - other.xpos , self.ypos - other.ypos])/b        
+        
+    def wp_attraction(self):
+        eps = np.finfo(float).eps
+        w_mag = math.fabs(self.w_force_mag[0])
+        b = math.sqrt((self.xpos - self.wp_points[0])**2 + (self.ypos - self.wp_points[1])**2) + eps
+        self.w_force = -w_mag*np.array([self.xpos - self.wp_points[0] , self.ypos - self.wp_points[1]])/b
+    
+        
     def update_velocity(self):
         coefficient = 1
         if abs(1.5-self.xpos) > 1.5:
@@ -255,6 +267,8 @@ if __name__ == '__main__':
             # Calculate boundary forces:
             for obj in spheros:
                 obj.bound_repulse()
+                obj.wp_attraction()
+                obj.a_force = np.array([0,0])
                 for obj2 in spheros:
                     if obj2 != obj:
                         obj.agent_repulse(obj2)
@@ -277,7 +291,7 @@ if __name__ == '__main__':
         # force init pos for now
         obj_wrb = spheros[1]
         obj_wrb.xpos = 2.5
-        obj_wrb.ypos = 1.5
+        obj_wrb.ypos = 0.2
         obj_bb8 = spheros[2]
         obj_bb8.xpos = 0.5
         obj_bb8.ypos = 0.5
@@ -288,6 +302,8 @@ if __name__ == '__main__':
                         obj.xpos = x_coord
                         obj.ypos = y_coord
                         obj.bound_repulse()
+                        obj.wp_attraction()
+                        obj.a_force = np.array([0,0])                        
                         for obj2 in spheros:
                             if obj2 != obj:
                                 obj.agent_repulse(obj2)
