@@ -103,8 +103,11 @@ class SpheroNode(object):
         self.power_state_msg = "No Battery Info"
         self.power_state = 0
 
+        self.prev_ODOM_X = None
+        self.prev_ODOM_Y = None
+
     def _init_pubsub(self):
-        self.odom_pub = rospy.Publisher('odom', Odometry, queue_size=1)
+        self.odom_pub = rospy.Publisher('odom', Odometry, queue_size=1, latch=True)
         self.imu_pub = rospy.Publisher('imu', Imu, queue_size=1)
         self.collision_pub = rospy.Publisher('collision', SpheroCollision, queue_size=1)
         self.diag_pub = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size=1)
@@ -130,7 +133,7 @@ class SpheroNode(object):
     def start(self):
         try:
             self.is_connected = self.robot.connect()
-            rospy.loginfo("Connect to Sphero with address: %s" % self.robot.bt.target_address)
+            rospy.loginfo("Connect to Sphero with address: %s" % self.robot.bt.deviceAddress)
         except:
             rospy.logerr("Failed to connect to Sphero.")
             #sys.exit(1)
@@ -161,6 +164,8 @@ class SpheroNode(object):
                 self.last_diagnostics_time = now
                 self.publish_diagnostics(now)
             r.sleep()
+
+        self.robot.shutdown = True
                     
     def stop(self):    
         #tell the ball to stop moving before quiting
@@ -228,11 +233,22 @@ class SpheroNode(object):
 
             odom = Odometry(header=rospy.Header(frame_id="odom"), child_frame_id='base_footprint')
             odom.header.stamp = now
+            if self.prev_ODOM_X is None:
+                self.prev_ODOM_X = data["ODOM_X"]
+            if self.prev_ODOM_Y is None:
+                self.prev_ODOM_Y = data["ODOM_Y"]
+            if abs(self.prev_ODOM_X - data["ODOM_X"]) > 100:
+                rospy.logerr("!! abs(self.prev_ODOM_X - data['ODOM_X') > 100 -  data['ODOM_X']:{0}, prev_ODOM_X: {1}".format(data["ODOM_X"], self.prev_ODOM_X))
+                data['ODOM_X'] = self.prev_ODOM_X
+            if abs(self.prev_ODOM_Y - data["ODOM_Y"]) > 100:
+                rospy.logerr("!! abs(self.prev_ODOM_Y - data['ODOM_Y']) > 100 - data['ODOM_Y']:{0}, prev_ODOM_Y: {1}".format(data["ODOM_Y"], self.prev_ODOM_Y))
+                data['ODOM_Y'] = self.prev_ODOM_Y
             odom.pose.pose = Pose(Point(data["ODOM_X"]/100.0,data["ODOM_Y"]/100.0,0.0), Quaternion(0.0,0.0,0.0,1.0))
             odom.twist.twist = Twist(Vector3(data["VELOCITY_X"]/1000.0, 0, 0), Vector3(0, 0, data["GYRO_Z_FILTERED"]*10.0*math.pi/180.0))
             odom.pose.covariance =self.ODOM_POSE_COVARIANCE                
             odom.twist.covariance =self.ODOM_TWIST_COVARIANCE
             self.odom_pub.publish(odom)                      
+            self.prev_ODOM_X, self.prev_ODOM_Y = data['ODOM_X'], data['ODOM_Y']
 
             #need to publish this trasform to show the roll, pitch, and yaw properly
             self.transform_broadcaster.sendTransform((0.0, 0.0, 0.038 ),
@@ -287,7 +303,10 @@ if __name__ == '__main__':
     parser.add_argument('--port', type=int, help='Specify port of Sphero', nargs='?', const=1, default=1)
 
     args, unknown = parser.parse_known_args()
-    rospy.init_node(args.target_name.lower().replace('-','_'))
+    if args.target_name:
+        rospy.init_node(args.target_name.lower().replace('-','_'))
+    else:
+        rospy.init_node('Sphero')
     rospy.loginfo(args)
     rospy.loginfo('Sphero name: {0}'.format(args.target_name))
 

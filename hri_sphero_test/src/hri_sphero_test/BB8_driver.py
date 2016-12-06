@@ -87,34 +87,27 @@ REQ = dict(
     CMD_SET_MACRO_STATUS=[0x02, 0x57])
 
 STRM_MASK1 = dict(
-    GYRO_H_FILTERED=0x00000001,
-    GYRO_M_FILTERED=0x00000002,
-    GYRO_L_FILTERED=0x00000004,
-    LEFT_EMF_FILTERED=0x00000020,
-    RIGHT_EMF_FILTERED=0x00000040,
-    MAG_Z_FILTERED=0x00000080,
-    MAG_Y_FILTERED=0x00000100,
-    MAG_X_FILTERED=0x00000200,
-    GYRO_Z_FILTERED=0x00000400,
-    GYRO_Y_FILTERED=0x00000800,
-    GYRO_X_FILTERED=0x00001000,
-    ACCEL_Z_FILTERED=0x00002000,
-    ACCEL_Y_FILTERED=0x00004000,
-    ACCEL_X_FILTERED=0x00008000,
-    IMU_YAW_FILTERED=0x00010000,
-    IMU_ROLL_FILTERED=0x00020000,
-    IMU_PITCH_FILTERED=0x00040000,
-    LEFT_EMF_RAW=0x00200000,
-    RIGHT_EMF_RAW=0x00400000,
-    MAG_Z_RAW=0x00800000,
-    MAG_Y_RAW=0x01000000,
-    MAG_X_RAW=0x02000000,
-    GYRO_Z_RAW=0x04000000,
-    GYRO_Y_RAW=0x08000000,
-    GYRO_X_RAW=0x10000000,
-    ACCEL_Z_RAW=0x20000000,
-    ACCEL_Y_RAW=0x40000000,
-    ACCEL_X_RAW=0x80000000)
+  ACCEL_X_RAW        = 0x80000000,
+  ACCEL_Y_RAW        = 0x40000000,
+  ACCEL_Z_RAW        = 0x20000000,
+  GYRO_X_RAW         = 0x10000000,
+  GYRO_Y_RAW         = 0x08000000,
+  GYRO_Z_RAW         = 0x04000000,
+  RIGHT_EMF_RAW      = 0x00400000,
+  LEFT_EMF_RAW       = 0x00200000,
+  LEFT_MOTOR_PWM_RAW = 0x00200000,
+  RIGHT_MOTOR_PWM_RAW= 0x00080000,
+  IMU_PITCH_FILTERED = 0x00040000,
+  IMU_ROLL_FILTERED  = 0x00020000,
+  IMU_YAW_FILTERED   = 0x00010000,
+  ACCEL_X_FILTERED   = 0x00008000,
+  ACCEL_Y_FILTERED   = 0x00004000,
+  ACCEL_Z_FILTERED   = 0x00002000,
+  GYRO_X_FILTERED    = 0x00001000,
+  GYRO_Y_FILTERED    = 0x00000800,
+  GYRO_Z_FILTERED    = 0x00000400,
+  RIGHT_EMF_FILTERED = 0x00000040,
+  LEFT_EMF_FILTERED  = 0x00000020)
 
 STRM_MASK2 = dict(
     QUATERNION_Q0=0x80000000,
@@ -133,11 +126,12 @@ STRM_MASK2 = dict(
 class BTInterface(btle.DefaultDelegate):
     def __init__(self, deviceAddress):
         btle.DefaultDelegate.__init__(self)
+        self.data_buf = []
 
         # Address type must be "random" or it won't connect.
         self.peripheral = btle.Peripheral(deviceAddress, btle.ADDR_TYPE_RANDOM)
         self.peripheral.setDelegate(self)
-
+        self.deviceAddress = deviceAddress
         self.seq = 0
 
         # Attribute UUIDs are identical to Ollie.
@@ -155,6 +149,7 @@ class BTInterface(btle.DefaultDelegate):
         self.txpower.write('\x0007', withResponse=True)
         print 'Sending wakecpu'
         self.wakecpu.write('\x01', withResponse=True)
+
 
     def getSpheroCharacteristic(self, fragment):
         return self.peripheral.getCharacteristics(uuid='22bb746f' + fragment + '75542d6f726568705327')[0]
@@ -188,15 +183,21 @@ class BTInterface(btle.DefaultDelegate):
     def handleNotification(self, cHandle, data):
         # print 'Notification:', cHandle, data.encode('hex')
         # print 'BB8 Response:', cHandle,
-        Sphero().recv(data)
+        # Sphero().recv(data)
         # print data
-        return data
+        self.data_buf += data
+        # return data
 
     def waitForNotifications(self, time):
         self.peripheral.waitForNotifications(time)
 
     def disconnect(self):
         self.peripheral.disconnect()
+
+    def get_data_buf(self):
+        data = self.data_buf
+        self.data_buf = []
+        return data
 
 
 # The following code from: https://github.com/mmwise/sphero_ros
@@ -781,7 +782,8 @@ class Sphero(threading.Thread):
 
     def run(self):
         # this is larger than any single packet
-        self.recv(1024)
+        while self.is_connected and not self.shutdown:
+            self.recv(1024)
 
     def recv(self, num_bytes):
         '''
@@ -827,10 +829,12 @@ class Sphero(threading.Thread):
           complement)
 
         '''
+        with self._communication_lock:
+            self.raw_data_buf += self.bt.get_data_buf()#recv(num_bytes)
 
         data = self.raw_data_buf
         while len(data) > 5:
-            if data[:2] == RECV['SYNC']:
+            if self.data2hexstr(data[:2]) == self.data2hexstr(RECV['SYNC']):
                 print "got response packet"
                 # response packet
                 data_length = ord(data[4])
@@ -841,7 +845,7 @@ class Sphero(threading.Thread):
                     break
                     # print "Response packet", self.data2hexstr(data_packet)
 
-            elif data[:2] == RECV['ASYNC']:
+            elif self.data2hexstr(data[:2]) == self.data2hexstr(RECV['ASYNC']):
                 data_length = (ord(data[3]) << 8) + ord(data[4])
                 if data_length + 5 <= len(data):
                     data_packet = data[:(5 + data_length)]
@@ -861,7 +865,8 @@ class Sphero(threading.Thread):
                 else:
                     print "got a packet that isn't streaming"
             else:
-                raise RuntimeError("Bad SOF : " + self.data2hexstr(data))
+                sys.stdout.write("Runtime Error - Bad SOF : " + self.data2hexstr(data) + "\nReset data to empty list.\n")
+                data = [] # clear data
         self.raw_data_buf = data
         #return data
 
@@ -919,10 +924,10 @@ class Sphero(threading.Thread):
     def parse_data_strm(self, data, data_length):
         output = {}
         for i in range((data_length - 1) / 2):
-            unpack = struct.unpack_from('>h', ''.join(data[5 + 2 * i:]))
+            unpack = struct.unpack_from('>h', ''.join(data[5 + 2 * i:5 + 2 * i+2]))
             output[self.mask_list[i]] = unpack[0]
-        print self.mask_list
-        print output
+        #print self.mask_list
+        #print output
         return output
 
 
