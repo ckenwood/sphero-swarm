@@ -64,6 +64,7 @@ class Sphero(object):
         self.number = number
         self.name = name
         if IS_ROS_NODE: self.cmd_vel_pub = rospy.Publisher(self.name + '/cmd_vel', Twist, queue_size = 10)
+        if IS_ROS_NODE: self.color_pub = rospy.Publisher(self.name+'/set_color', ColorRGBA, queue_size = 10)
         if IS_ROS_NODE: rospy.Subscriber(self.name+'/global_pose', geometry_msgs.msg.Pose, self.set_pose)
 
          # Inertia, rate constants
@@ -227,7 +228,13 @@ class Sphero(object):
             self.cmd_vel_pub.publish(self.vel_msg)
             # Send updated velocity to Sphero
 
-
+    def pub_color(self,r,g,b,a):
+        color_msg = ColorRGBA()
+        color_msg.r = r
+        color_msg.g = g
+        color_msg.b = b
+        color_msg.a = a
+        self.color_pub.publish(color_msg)
 
         
 if __name__ == '__main__':
@@ -251,6 +258,7 @@ if __name__ == '__main__':
         spheros[i].set_wp(wp_i)
 
     r = 100 # rate of 100 Hz
+    changed_color = False
     if IS_ROS_NODE:
         rate = rospy.Rate(r)
 
@@ -261,6 +269,15 @@ if __name__ == '__main__':
                 print [obj.xpos for obj in spheros] + [obj.ypos for obj in spheros]
                 time.sleep(0.2)
                 continue
+            elif not changed_color:
+                changed_color = True
+                # Publish color
+                for obj_idx, obj in enumerate(spheros):
+                    if obj_idx < len(spheros)-1:
+                        if obj_idx%2 == 0:
+                            obj.pub_color(255,0,0,0)
+                        else:
+                            obj.pub_color(0,0,255,0)
 
             # Publish velocities based on the force:
             for obj in spheros:
