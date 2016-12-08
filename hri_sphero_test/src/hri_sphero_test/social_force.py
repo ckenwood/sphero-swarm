@@ -23,6 +23,7 @@ from sphero_node.cfg import ReconfigConfig
 SCALE = 40
 IS_ROS_NODE = True
 CONTROLLED_AGENT = 'sphero_ggw'
+STOP_DISTANCE = 0.2
 
 def pairs(lst):
     i = iter(lst)
@@ -69,7 +70,7 @@ class Sphero(object):
 
          # Inertia, rate constants
         self.mass =  1.0
-        self.rate = 100 # update rate in force-momentum equation; dt = 1/rate; F*dt = mass*dv
+        self.rate = 3 # update rate in force-momentum equation; dt = 1/rate; F*dt = mass*dv
         if IS_ROS_NODE: self.time = rospy.Time.now().to_sec()
 
         self.xmax = max(corner[0] for corner in self.bounds)
@@ -82,8 +83,10 @@ class Sphero(object):
         self.w_force_mag = data
         if data[0] > 0:
             self.wp_points = np.array([2.5,1.5]) # single point WP for rightward agents
+            self.pub_color(255,0,0,0)
         else:
             self.wp_points = np.array([0.5,1.5]) # for leftward agents
+            self.pub_color(0,0,255,0)
 
 
     def bound_repulse(self):
@@ -187,8 +190,8 @@ class Sphero(object):
         # vy = self.yvel/math.sqrt(self.xvel**2 + self.yvel**2)*SCALE
         
         # Do a linear mapping instead of scaling: from 30 to 40 in each case
-        v_l = 30 # Lower and upper limits for the linear mapping
-        v_h = 40
+        v_l = 45 # Lower and upper limits for the linear mapping
+        v_h = 55
         v_clamp = self.v_clamp
         if self.xvel == 0:
             vx = 0
@@ -216,6 +219,14 @@ class Sphero(object):
         else:
             vy2 = -v_l2 + (v_h-v_l2)*self.yvel/(v_clamp) 
         
+        # check if we are close enough
+        if math.sqrt((self.xpos-self.wp_points[0])**2 + (self.ypos-self.wp_points[1])**2) \
+            < STOP_DISTANCE:
+            self.set_wp(-1*self.w_force_mag)
+            rospy.loginfo(self.name+" switching direction")
+        #    vx, vy = 0,0
+        #    rospy.loginfo(self.name+' is stopping. Reached destination.')
+
 
         #if self.name == 'sphero_rgw':
             #rospy.loginfo('vx: {0}, vy: {1}'.format(vx, vy))
@@ -257,7 +268,8 @@ if __name__ == '__main__':
         spheros.append(Sphero(i,name_i))
         spheros[i].set_wp(wp_i)
 
-    r = 100 # rate of 100 Hz
+    r = spheros[0].rate
+    #r = 10 # rate of 100 Hz
     changed_color = False
     if IS_ROS_NODE:
         rate = rospy.Rate(r)
@@ -269,15 +281,15 @@ if __name__ == '__main__':
                 print [obj.xpos for obj in spheros] + [obj.ypos for obj in spheros]
                 time.sleep(0.2)
                 continue
-            elif not changed_color:
-                changed_color = True
-                # Publish color
-                for obj_idx, obj in enumerate(spheros):
-                    if obj_idx < len(spheros)-1:
-                        if obj_idx%2 == 0:
-                            obj.pub_color(255,0,0,0)
-                        else:
-                            obj.pub_color(0,0,255,0)
+            #elif not changed_color:
+            #    #changed_color = True
+            #    # Publish color
+            #    for obj_idx, obj in enumerate(spheros):
+            #        if obj_idx < len(spheros)-1:
+            #            if obj_idx%2 == 0:
+            #                obj.pub_color(255,0,0,0)
+            #            else:
+            #                obj.pub_color(0,0,255,0)
 
             # Publish velocities based on the force:
             for obj in spheros:
