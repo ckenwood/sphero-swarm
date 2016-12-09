@@ -83,10 +83,8 @@ class Sphero(object):
         self.w_force_mag = data
         if data[0] > 0:
             self.wp_points = np.array([2.5,1.5]) # single point WP for rightward agents
-            self.pub_color(255,0,0,0)
         else:
             self.wp_points = np.array([0.5,1.5]) # for leftward agents
-            self.pub_color(0,0,255,0)
 
 
     def bound_repulse(self):
@@ -256,7 +254,7 @@ if __name__ == '__main__':
     sphero_list = ['sphero_rgw', 'sphero_wrb', 'sphero_yoo', 'sphero_wpp', CONTROLLED_AGENT]
     N_agents = 5
     spheros = []
-    w_force = 100
+    w_force = 200 #100
     if IS_ROS_NODE: rospy.init_node('social_force')
     # Initialize spheros: 
     for i in range(0,N_agents):
@@ -270,7 +268,7 @@ if __name__ == '__main__':
 
     r = spheros[0].rate
     #r = 10 # rate of 100 Hz
-    changed_color = False
+
     if IS_ROS_NODE:
         rate = rospy.Rate(r)
 
@@ -281,15 +279,14 @@ if __name__ == '__main__':
                 print [obj.xpos for obj in spheros] + [obj.ypos for obj in spheros]
                 time.sleep(0.2)
                 continue
-            #elif not changed_color:
-            #    #changed_color = True
-            #    # Publish color
-            #    for obj_idx, obj in enumerate(spheros):
-            #        if obj_idx < len(spheros)-1:
-            #            if obj_idx%2 == 0:
-            #                obj.pub_color(255,0,0,0)
-            #            else:
-            #                obj.pub_color(0,0,255,0)
+
+            # Publish color
+            for obj_idx, obj in enumerate(spheros):
+                if obj.name != CONTROLLED_AGENT:
+                    if obj.w_force_mag[0] > 0:
+                        obj.pub_color(255,0,0,0)
+                    else:
+                        obj.pub_color(0,0,255,0)
 
             # Publish velocities based on the force:
             for obj in spheros:
