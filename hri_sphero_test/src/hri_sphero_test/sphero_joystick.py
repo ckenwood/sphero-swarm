@@ -55,11 +55,14 @@ from std_msgs.msg import ColorRGBA, Float32, Bool
 #sph.set_rotation_rate(1, False)
 
 rospy.init_node('sphero_joystick')
-cmd_vel_pub = rospy.Publisher('/sphero_rgw/cmd_vel', Twist, queue_size = 1)
+
+cmd_vel_pub = rospy.Publisher('/sphero_ggw/cmd_vel', Twist, queue_size = 1)
+#cmd_vel_pub = rospy.Publisher('/sphero_ypw/cmd_vel', Twist, queue_size = 1)
 
 def publish_cmd_vel(v, thet):
     # Convert speed and heading to cmd_vel and publish
-    scale = 56
+    scale = 90
+    #scale = 200
     vx = v*math.sin(math.pi*thet/180) # atan2 in cmd_vel has opposite order atan2(vx,vy) instead of atan2(y,x)
     vy = v*math.cos(math.pi*thet/180)
     eps = np.finfo(float).eps
@@ -208,7 +211,7 @@ if __name__ == '__main__':
     #start()
     #bb8.start()
     while not rospy.is_shutdown():
-        clock.tick(10)
+        #clock.tick(100)
         
         joystick = pygame.joystick.Joystick(0)
 
@@ -241,4 +244,5 @@ if __name__ == '__main__':
         #raw_data = sph.run()
         #raw_data = 3
         #print raw_data
+        r.sleep()
         pygame.display.update()
