@@ -20,6 +20,7 @@ class GlobalPoseObj(object):
         self._current_odom_from_imu = None
         self._current_odom = None # add in velocity
         self._init_odom = None
+        self._vicon_pose = None
 
         #initialize extrapolation list with velocity command
         self._timestamp_list = []
@@ -34,7 +35,7 @@ class GlobalPoseObj(object):
         #### PUBLISHERS #####
         # pose publisher
         self._pose_pub = rospy.Publisher(args.publish_pose_topic, geometry_msgs.msg.Pose, queue_size=10, latch=True)
-        self._rate = rospy.Rate(30) # set publish rate
+        self._rate = rospy.Rate(50) # set publish rate
 
         # posestamped publisher
         #self._posestamped_pub = rospy.Publisher(args.publish_pose_topic, geometry_msgs.msg.PoseStamped, queue_size=10, latch=True)
@@ -63,17 +64,45 @@ class GlobalPoseObj(object):
         self._odom_only_path_msg.header.frame_id = '/world'
         self._odom_only_path_pub = rospy.Publisher('odom_only_path', Path, queue_size=10, latch=True) #args.robot_frame+'_path'
 
+        # setup path (odom with extrapolation)
+        self._odom_with_extrapolation_path_msg = Path()
+        self._odom_with_extrapolation_path_msg.header.frame_id = '/world'
+        self._odom_with_extrapolation_path_pub = rospy.Publisher(\
+        'odom_with_extrapolation', Path, queue_size=10, latch=True) #args.robot_frame+'_path'
+
+
         # odom from velocity pub
         self._odom_from_velocity_pub = rospy.Publisher('odom_from_velocity', Odometry, queue_size=10, latch=True)
         self._odom_from_velocity_msg = Odometry()
 
         ### SUBSCRIBERS ####
         try:
+            if args.robot_frame == 'GPSReceiverHelmet_goodaxes':
+                vicon_msg = rospy.wait_for_message('/vicon/'+args.robot_frame+'/GPSReceiverHelmet01', \
+                geometry_msgs.msg.TransformStamped, timeout=2.0)
+            else:
+                vicon_msg = rospy.wait_for_message('/vicon/'+args.robot_frame+'/body', \
+                geometry_msgs.msg.TransformStamped, timeout=2.0)
+
+        except:
+            rospy.logwarn('{0}: Cannot subscribe to vicon.'.format(rospy.get_name()))
+            vicon_msg = None
+        rospy.loginfo('{0}: vicon_topic:{1} vicon_msg: {2}'.format(rospy.get_name(), '/vicon/'+args.robot_frame+'/body', vicon_msg))
+
+        try:
             odom_msg = rospy.wait_for_message(args.odom_topic, Odometry, timeout=2.0)
         except:
             rospy.logwarn('{0}: Cannot subscribe to odometry from robot. Calulating our own.'.format(rospy.get_name()))
             odom_msg = None
         rospy.loginfo('{0}: odom_msgs: {1}'.format(rospy.get_name(), odom_msg))
+
+        if vicon_msg:
+            if args.robot_frame == 'GPSReceiverHelmet_goodaxes':
+                rospy.Subscriber('/vicon/'+args.robot_frame+'/GPSReceiverHelmet01', \
+                geometry_msgs.msg.TransformStamped, callback=self.update_vicon)
+            else:
+                rospy.Subscriber('/vicon/'+args.robot_frame+'/body', \
+                geometry_msgs.msg.TransformStamped, callback=self.update_vicon)
 
         if not odom_msg: # we cannot get odom msgs
             # subscribe to velocity command
@@ -85,6 +114,8 @@ class GlobalPoseObj(object):
             self._prev_cmd_time = rospy.Time.now().to_sec()
             rospy.Subscriber('cmd_vel', geometry_msgs.msg.Twist, callback=self.save_cmd_vel)
 
+    def update_vicon(self, data):
+        self._vicon_pose = [data.transform.translation.x, data.transform.translation.y]
 
     def save_odometry(self, data):
         # save initial
@@ -199,7 +230,10 @@ if __name__ == "__main__":
         # return #
         ##########
         # global pose = [x_global, y_global]
-        if global_pose_obj._current_odom and global_pose_obj._init_odom:
+        if global_pose_obj._vicon_pose:
+            rospy.loginfo("{0} Using Vicon Pose: {1}".format(args.robot_frame, global_pose_obj._vicon_pose))
+            global_pose = global_pose_obj._vicon_pose
+        elif global_pose_obj._current_odom and global_pose_obj._init_odom:
             global_pose = get_global_info.get_global_pose(global_pose_obj._robot_start_pose, \
                 global_pose_obj._init_odom, global_pose_obj._current_odom)
         else: # assume we are staying in place for now
@@ -248,6 +282,24 @@ if __name__ == "__main__":
             global_pose_obj._odom_only_path_msg.poses.append(\
                 copy.deepcopy(global_pose_obj._posestamped_msg))
             global_pose_obj._odom_only_path_pub.publish(global_pose_obj._odom_only_path_msg)
+
+            ###################################
+            ### path with vel extrapolation ###
+            ###################################
+            if global_pose_obj._current_odom and global_pose_obj._init_odom:
+                global_odom_with_extrapolation= get_global_info.get_global_pose(global_pose_obj._robot_start_pose, \
+                    global_pose_obj._init_odom, global_pose_obj._current_odom)
+            else: # assume we are staying in place for now
+                global_odom_with_extrapolation = global_pose_obj._robot_start_pose[0:2]
+
+            # update to odom only pose
+            global_pose_obj._posestamped_msg.pose.position.x = global_odom_with_extrapolation[0]
+            global_pose_obj._posestamped_msg.pose.position.y = global_odom_with_extrapolation[1]
+            global_pose_obj._odom_with_extrapolation_path_msg.poses.append(\
+                copy.deepcopy(global_pose_obj._posestamped_msg))
+            global_pose_obj._odom_with_extrapolation_path_pub.publish(\
+                global_pose_obj._odom_with_extrapolation_path_msg)
+
 
             prev_time = rospy.Time.now()
             #rospy.loginfo('We came here!' + str(global_pose_obj._path_msg))
