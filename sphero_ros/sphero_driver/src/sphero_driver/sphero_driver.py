@@ -906,13 +906,20 @@ class Sphero(threading.Thread):
     return output
 
   def parse_data_strm(self, data, data_length):
-    output={}
-    for i in range((data_length-1)/2):
-      unpack = struct.unpack_from('>h', ''.join(data[5+2*i:]))
-      output[self.mask_list[i]] = unpack[0]
-    #print self.mask_list
-    #print output
-    return output
+    try:
+      #output={}
+      output = dict([(mask,0) for mask in self.mask_list])
+      for i in range((data_length-1)/2):
+        unpack = struct.unpack_from('>h', ''.join(data[5+2*i:]))
+        #print unpack
+        output[self.mask_list[i]] = unpack[0]
+      #print self.mask_list
+      #print output
+      return output
+    except:
+      print "==== ERROR ==="
+      print unpack
+      return output
 
 
 
