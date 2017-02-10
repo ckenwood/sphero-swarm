@@ -21,7 +21,7 @@ from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from sphero_node.cfg import ReconfigConfig
 
 SCALE = 40
-IS_ROS_NODE = True
+IS_ROS_NODE = False
 CONTROLLED_AGENT = 'sphero_ggw'
 STOP_DISTANCE = 0.2
 
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     sphero_list = ['sphero_rgw', 'sphero_wrb', 'sphero_yoo', 'sphero_wpp', CONTROLLED_AGENT]
     N_agents = 5
     spheros = []
-    w_force = 200 #100
+    w_force = 100 #100
     if IS_ROS_NODE: rospy.init_node('social_force')
     # Initialize spheros: 
     for i in range(0,N_agents):
@@ -305,7 +305,7 @@ if __name__ == '__main__':
     else:
         import numpy as np
         import matplotlib.pyplot as plt
-
+        import matplotlib.lines as mlines
         # Set limits and number of points in grid
         SPACING_Y = 13j
         SPACING_X = 13j
@@ -317,12 +317,20 @@ if __name__ == '__main__':
         obj = spheros[0]
 
         # force init pos for now
+        sphero_list = ['sphero_rgw', 'sphero_wrb', 'sphero_yoo', 'sphero_wpp', CONTROLLED_AGENT]
+
         obj_wrb = spheros[1]
         obj_wrb.xpos = 2.5
-        obj_wrb.ypos = 0.2
-        obj_bb8 = spheros[2]
-        obj_bb8.xpos = 0.5
-        obj_bb8.ypos = 0.5
+        obj_wrb.ypos = 1.4
+        obj_yoo = spheros[2]
+        obj_yoo.xpos = 0.8
+        obj_yoo.ypos = 2.5
+        obj_wpp = spheros[3]
+        obj_wpp.xpos = 2.0
+        obj_wpp.ypos = 0.5
+        obj_ggw = spheros[4]
+        obj_ggw.xpos = 0.5
+        obj_ggw.ypos = 0.5
         for x_row in x:
             for idx_x_row, x_coord in enumerate(x_row):
                 for idx_y_row, y_row in enumerate(y):
@@ -354,4 +362,14 @@ if __name__ == '__main__':
 
         ax.quiver(x, y, fx, fy, units='height')
         ax.set(aspect=1, title='Force Field', xlabel='x(m)', ylabel='y(m)')
+
+        # plot robot location
+        obj_rgw = spheros[0]
+        obj_rgw.xpos = 0.5
+        obj_rgw.ypos = 1.6
+        color = ['r','g','y','w','k']
+        #ax.plot(obj.xpos, obj.ypos,  c=color[0], marker='o', markersize=20, label=sphero_list[0])
+        for idx, obj2 in enumerate(spheros):
+            ax.plot(obj2.xpos, obj2.ypos,  c=color[idx], marker='o', markersize=20, label=sphero_list[idx])
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=3, numpoints=1)
         plt.show()

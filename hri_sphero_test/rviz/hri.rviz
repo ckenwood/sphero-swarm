@@ -6,6 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
+        - /TF1
         - /TF1/Frames1
       Splitter Ratio: 0.625
     Tree Height: 466
@@ -54,11 +55,9 @@ Visualization Manager:
       Frame Timeout: 15
       Frames:
         All Enabled: false
-        base_footprint:
-          Value: true
-        base_link:
-          Value: true
         map:
+          Value: true
+        odom:
           Value: true
         sphero_ggw:
           Value: true
@@ -70,7 +69,15 @@ Visualization Manager:
           Value: true
         sphero_yoo:
           Value: true
-        sphero_ypw:
+        vicon/sphero_ggw/body:
+          Value: true
+        vicon/sphero_rgw/body:
+          Value: true
+        vicon/sphero_wpp/body:
+          Value: true
+        vicon/sphero_wrb/body:
+          Value: true
+        vicon/sphero_yoo/body:
           Value: true
         world:
           Value: true
@@ -83,6 +90,17 @@ Visualization Manager:
         world:
           map:
             {}
+          odom:
+            vicon/sphero_ggw/body:
+              {}
+            vicon/sphero_rgw/body:
+              {}
+            vicon/sphero_wpp/body:
+              {}
+            vicon/sphero_wrb/body:
+              {}
+            vicon/sphero_yoo/body:
+              {}
           sphero_ggw:
             {}
           sphero_rgw:
@@ -92,8 +110,6 @@ Visualization Manager:
           sphero_wrb:
             {}
           sphero_yoo:
-            {}
-          sphero_ypw:
             {}
       Update Interval: 0
       Value: true
@@ -363,22 +379,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 4.38863
+      Distance: 5.38051
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 2.10169
-        Y: 1.16013
-        Z: -0.100047
+        X: 2.31734
+        Y: 1.29026
+        Z: -0.0999158
       Name: Current View
       Near Clip Distance: 0.01
       Pitch: 1.5698
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 4.71857
+      Yaw: 4.71357
     Saved: ~
 Window Geometry:
   Displays:

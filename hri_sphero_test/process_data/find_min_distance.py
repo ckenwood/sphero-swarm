@@ -43,7 +43,7 @@ class DataProcessing(object):
         for idx, this_sphero in enumerate(self.sphero_list):
             dist_list = self.dist[this_sphero].values()
             dist_list.insert(idx, 9999.0)
-            print("{0:15s}\t{1:10.2f}\t{2:10.2f}\t{3:10.2f}\t{4:10.2f}\t{5:10.2f}".format(\
+            print("{0:15s}\t{1:10.4f}\t{2:10.4f}\t{3:10.4f}\t{4:10.4f}\t{5:10.4f}".format(\
                 this_sphero, *dist_list))
 
         print("\n#### Time to Complete ####")
@@ -92,6 +92,51 @@ class DataProcessing(object):
                     self.dist[another_sphero][args[0]] = min(self.dist[another_sphero][args[0]], dist)
 
 
+class TestSubjectDataProcessing(object):
+    # calculate eight and square
+    # only for ggw
+    def __init__(self):
+        self._square_center = [1.5, 1.5]
+        self._eight_points = [[1.0, 1.0], [1.0, 2.0]]
+        self._min_square_dist = 9999.0
+        self._max_square_dist = 0.0
+        self._min_eight_dist = 9999.0
+        self._max_eight_dist = 0.0
+
+    def calculate_square_distance(self, data):
+        pose = [data.transform.translation.x, data.transform.translation.y]
+        dist = math.sqrt((self._square_center[0]- pose[0])**2 +
+                         (self._square_center[1]- pose[1])**2)
+        self._min_square_dist = min(self._min_square_dist, dist)
+        self._max_square_dist = max(self._max_square_dist, dist)
+
+    def calculate_eight_distance(self, data):
+        pose = [data.transform.translation.x, data.transform.translation.y]
+
+        dist_0 = math.sqrt((self._eight_points[0][0]- pose[0])**2 +
+                         (self._eight_points[0][1]- pose[1])**2)
+        dist_1 = math.sqrt((self._eight_points[1][0]- pose[0])**2 +
+                         (self._eight_points[1][1]- pose[1])**2)
+        if dist_0 > dist_1:
+            dist = dist_1
+        else:
+            dist = dist_0
+
+        self._min_eight_dist = min(self._min_eight_dist, dist)
+        self._max_eight_dist = max(self._max_eight_dist, dist)
+
+    def print_square_result(self):
+        print("------ Square Result ------")
+        print("{0:15s}\t{1:15s}".format('Min Distance', 'Max Distance'))
+        print("{0:10.4f}\t{1:10.4f}\n".format(self._min_square_dist, self._max_square_dist))
+
+
+    def print_eight_result(self):
+        print("------ Eight Result ------")
+        print("{0:15s}\t{1:15s}".format('Min Distance', 'Max Distance'))
+        print("{0:10.4f}\t{1:10.4f}\n".format(self._min_eight_dist, self._max_eight_dist))
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process data")
     parser.add_argument('--participant_number', type=int, \
@@ -106,7 +151,8 @@ if __name__ == "__main__":
 
     if args.check_goal == 'True':
         bag_type_list = ['joystick']
-        topics = ['/'+CONTROLLED_AGENT+'/global_pose']
+        #topics = ['/'+CONTROLLED_AGENT+'/global_pose']
+        topics = ['/'+'sphero_yoo'+'/global_pose']
         #bag_type_list = ['helmet']
         #topics = ['/'+CONTROLLED_AGENT+'/global_pose']
     else:
@@ -114,6 +160,20 @@ if __name__ == "__main__":
         topics = ['/'+sphero_name+'/global_pose' for sphero_name in a.sphero_list]
 
     print "~~~~~~ Participant {0} ~~~~~~~~".format(args.participant_number)
+    eight_bag = rosbag.Bag('/home/catherine/bagfiles/Participant'+\
+        str(args.participant_number)+'/'+'eight'+'.bag')
+    square_bag = rosbag.Bag('/home/catherine/bagfiles/Participant'+\
+        str(args.participant_number)+'/'+'square'+'.bag')
+    b = TestSubjectDataProcessing()
+    for topic, msg, t in eight_bag.read_messages(topics=['/vicon/sphero_ggw/body']):
+        b.calculate_eight_distance(msg)
+    for topic, msg, t in square_bag.read_messages(topics=['/vicon/sphero_ggw/body']):
+        b.calculate_square_distance(msg)
+
+    b.print_eight_result()
+    b.print_square_result()
+
+
     for bag_type in bag_type_list:
         print "------ {bag_type} ------".format(bag_type=bag_type)
         bag = rosbag.Bag('/home/catherine/bagfiles/Participant'+\
@@ -125,14 +185,13 @@ if __name__ == "__main__":
         for topic, msg, t in bag.read_messages(topics=topics):
             if args.check_goal == 'True' and not start:
                 start = t.to_sec()
-
+                print msg, t.to_sec()
             a.calculate_min_distance(msg, [topic.replace('/global_pose','').replace('/',''), \
             t.to_sec()])
-            if args.check_goal == 'True':
-                print msg, t.to_sec()
+
         a.print_result()
 
-        if args.check_goal == 'True': print t.to_sec()-start
+        if args.check_goal == 'True': print msg, t.to_sec(), t.to_sec()-start
         bag.close()
 
     #rospy.spin()
