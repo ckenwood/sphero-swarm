@@ -1,0 +1,21 @@
+<library path="src">
+  <class name="Sphero Control Plugin" type="sphero_control.sphero_control.SpheroControl" base_class_type="rqt_gui_py::Plugin">
+    <description>
+      This is a Python GUI plugin to:
+      (1) Give Commands to Sphero and then execute it!
+    </description>
+    <qtgui>
+      <!-- optional grouping...
+      <group>
+        <label>Group</label>
+      </group>
+      <group>
+        <label>Subgroup</label>
+      </group>
+      -->
+      <label>Sphero Control Plugin</label>
+      <icon type="theme">system-help</icon>
+      <statustip>Python GUI plugin forSphero Control </statustip>
+    </qtgui>
+  </class>
+</library>
