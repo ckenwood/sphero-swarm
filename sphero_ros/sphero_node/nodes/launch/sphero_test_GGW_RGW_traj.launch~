@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch> 
+    <group ns="sphero_rgw_group">
+    <node name="sphero_rgw" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-RGW --target_addr 68:86:E7:09:77:D4" respawn='false' output="screen"/>
+    <node name="follow_traj_rgw" pkg="hri_sphero_test" type="follow_trajectory.py" respawn='false' output="screen"/>
+    </group> 
+
+    <group ns="sphero_ggw_group">
+    <node name="sphero_ggw" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-GGW --target_addr 68:86:E7:08:95:5F" respawn='false' output="screen"/>
+    <node name="follow_traj_ggw" pkg="hri_sphero_test" type="follow_trajectory.py" respawn='false' output="screen"/>
+    </group>
+ 
+</launch>
+
+
+
+
+
+
+

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<launch>
+    <node ns="sphero_ggw" name="sphero_ggw" pkg="sphero_node" type="sphero.py" args="--target_name Sphero-GGW --target_addr 68:86:E7:08:95:5F" respawn='true' output="screen"/>
+    <node ns="sphero_traj" name="sphero_traj" pkg="sphero_node" type="follow_trajectory.py" respawn="true"/>   
+</launch>
